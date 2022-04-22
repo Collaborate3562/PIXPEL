@@ -35,7 +35,7 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         _;
     }
     
-    constructor(string memory _baseURI) ERC721("PixpelNFT", "PIXPNT") {
+    constructor() ERC721("PixpelNFT", "PIXPNT") {
     }
     receive() external payable {}
 
