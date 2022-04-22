@@ -18,6 +18,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorage, ERC721Burnable, Ownable {
     using SafeMath for uint256;
+    using Strings for uint256;
 
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
@@ -25,7 +26,6 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
     string private baseTokenURI;
 
     mapping(address => bool) public addressForRegister;
-    mapping(uint256 => NFTInfo) public NFTInfoForAddress;
 
     modifier onlyRegister() {
         require(
@@ -51,18 +51,17 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
     function setBaseURI(string memory _newuri) 
         external 
         onlyOwner 
-        returns(bool)
     {
         baseTokenURI = _newuri;
     }
 
     function mintNFT() 
-        pubilc 
+        public 
         onlyRegister
     {
         uint256 _newTokenId = _tokenIds.current();
-        _safeMint(_to, _newTokenId);
-        _tokenIdCounter.increment();
+        _safeMint(msg.sender, _newTokenId);
+        _tokenIds.increment();
     }
 
     function tokensOfOwner(address _owner)
@@ -110,7 +109,7 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         public 
         view 
         virtual 
-        override 
+        override (ERC721, ERC721URIStorage)
         returns (string memory) 
     {
         require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
@@ -124,7 +123,7 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         view
         returns(bool)
     {
-        return addressForRegister(msg.sender);
+        return addressForRegister[msg.sender];
     }
 
     function registerAddress(address _register) 
@@ -138,6 +137,26 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         public
         onlyOwner
     {
-        addressForRegister[_register] = false;
+        addressForRegister[_unregister] = false;
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721Enumerable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
+        internal
+        override(ERC721, ERC721Enumerable)
+    {
+        super._beforeTokenTransfer(from, to, tokenId);
     }
 }
