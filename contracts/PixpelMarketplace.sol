@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
-pragma solidity ^0.8.3;
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+// import "@openzeppelin/contracts/utils/Counters.sol";
+// import "@openzeppelin/contracts/access/Ownable.sol";
+// import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./PixpelNFT.sol";
@@ -13,14 +13,14 @@ import "hardhat/console.sol";
 /// @title An Auction Contract for bidding and selling single and batched NFTs
 /// @author Dev Stenor Tanaka
 /// @notice This contract can be used for auctioning any NFTs, and accepts any ERC20 token as payment
-contract NFTMarket is ReentrancyGuard, Ownable {
+contract PixpelNFTMarket is ReentrancyGuard, Ownable {
   using SafeMath for uint256;
   using Strings for uint256;
 
   using Counters for Counters.Counter;
   Counters.Counter private _tokenIds;
 
-  address public nftContractAddress; 
+  address payable public nftContractAddress; 
   address public PIXPContractAddress;
 
   uint256 public listingPricePercentage;
@@ -31,7 +31,7 @@ contract NFTMarket is ReentrancyGuard, Ownable {
   constructor(address _nftContractAddress, address _pixpContractAddress, uint256 _listingPricePercentage, uint256 _unlistingPricePercentage) {
     _profit = 0;
 
-    nftContractAddress = _nftContractAddress;
+    nftContractAddress = payable(_nftContractAddress);
     listingPricePercentage = _listingPricePercentage;
     unlistingPricePercentage = _unlistingPricePercentage;
     PIXPContractAddress = _pixpContractAddress;
@@ -144,7 +144,6 @@ contract NFTMarket is ReentrancyGuard, Ownable {
     require(IERC20(PIXPContractAddress).balanceOf(msg.sender) >= price * amount, "Insufficient funds.");
 
     for(uint256 i = 0; i < amount; i++) {
-      uint256 _newTokenId = _tokenIds.current();
       PixpelNFT(nftContractAddress).mintNFT(msg.sender);
       _tokenIds.increment();
 
