@@ -24,16 +24,6 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
     Counters.Counter private _tokenIds;
 
     string private baseTokenURI;
-
-    mapping(address => bool) public addressForRegister;
-
-    modifier onlyRegister() {
-        require(
-            addressForRegister[msg.sender],
-            "Can only be called by register"
-        );
-        _;
-    }
     
     constructor() ERC721("PixpelNFT", "PIXPNT") {
     }
@@ -55,12 +45,11 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         baseTokenURI = _newuri;
     }
 
-    function mintNFT() 
+    function mintNFT(address _to) 
         public 
-        onlyRegister
     {
         uint256 _newTokenId = _tokenIds.current();
-        _safeMint(msg.sender, _newTokenId);
+        _safeMint(_to, _newTokenId);
         _tokenIds.increment();
     }
 
@@ -116,28 +105,6 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
 
         string memory baseURI = _baseURI();
         return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString(),".json")) : "";
-    }
-
-    function isRegister()
-        public 
-        view
-        returns(bool)
-    {
-        return addressForRegister[msg.sender];
-    }
-
-    function registerAddress(address _register) 
-        public
-        onlyOwner
-    {
-        addressForRegister[_register] = true;
-    }
-
-    function unregisterAddress(address _unregister)
-        public
-        onlyOwner
-    {
-        addressForRegister[_unregister] = false;
     }
 
     function supportsInterface(bytes4 interfaceId)
