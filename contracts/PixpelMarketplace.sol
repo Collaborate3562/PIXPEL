@@ -28,7 +28,6 @@ contract NFTMarket is ReentrancyGuard, Ownable {
   /* MarketItem and AuctionItem Struct */
     struct MarketItem {
         bool exist;
-        address nftContract;
         uint256 tokenId;
         address payable creator;
         address payable currentOwner;
@@ -46,7 +45,6 @@ contract NFTMarket is ReentrancyGuard, Ownable {
 
   /* Define events */
     event MarketItemCreated(
-        address indexed nftContract,
         uint256 indexed tokenId,
         address creator,
         address currentOwner,
@@ -68,14 +66,12 @@ contract NFTMarket is ReentrancyGuard, Ownable {
     );
 
     event BidMade(
-        address nftContract,
         uint256 tokenId,
         address bidder,
         uint256 bidPrice
     );
 
     event AuctionEnded(
-        address nftContract,
         uint256 tokenId,
         address highestBidder,
         uint256 highestBid
@@ -129,7 +125,6 @@ contract NFTMarket is ReentrancyGuard, Ownable {
 
         idToMarketItem[tokenId] = MarketItem(
             true,
-            nftContractAddress,
             tokenId,
             payable(creator),
             payable(msg.sender),
@@ -142,7 +137,6 @@ contract NFTMarket is ReentrancyGuard, Ownable {
         _profit += msg.value;
 
         emit MarketItemCreated(
-            nftContractAddress,
             tokenId,
             creator,
             msg.sender,
@@ -216,7 +210,6 @@ contract NFTMarket is ReentrancyGuard, Ownable {
         idToHighestBid[tokenId] = msg.value;
 
         emit BidMade (
-          nftContractAddress,
           tokenId,
           msg.sender,
           msg.value
@@ -244,7 +237,6 @@ contract NFTMarket is ReentrancyGuard, Ownable {
       idToMarketItem[tokenId].currentOwner = idToHighestBidder[tokenId];
 
       emit AuctionEnded (
-        nftContractAddress,
         tokenId,
         idToHighestBidder[tokenId],
         idToHighestBid[tokenId]
