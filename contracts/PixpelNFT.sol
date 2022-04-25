@@ -48,6 +48,7 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
     mapping(address => bool) public addressForRegister;
     mapping(uint256 => uint256) public totalSupplyForGameType;
     mapping(uint256 => NFTInfo) public NFTInfoForTokenId;
+    mapping(uint256 => uint256) public mintedAmountForGameType;
     
     modifier onlyRegister() {
         require(
@@ -90,6 +91,9 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         public 
         onlyRegister
     {
+        if(totalSupplyForGameType[_gameId] > 0) {
+            require(totalSupplyForGameType[_gameId] >= mintedAmountForGameType[_gameId].add(_amount), "Can not mint anymore");
+        }
         require(IERC20(PIXPContractAddress).balanceOf(msg.sender) >= _price.mul(_amount), "Insufficient funds.");
         require(IERC20(PIXPContractAddress).allowance(msg.sender, address(this)) >= _price.mul(_amount), "Allowance funds must exceed price");
 
@@ -108,7 +112,7 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
             NFTInfoForTokenId[_newTokenId].currentOwner = msg.sender;
             NFTInfoForTokenId[_newTokenId].previousOwner = address(0);
             NFTInfoForTokenId[_newTokenId].royalty = ROYALTY_FEE;
-            
+
             emit NFTMinted(
                 _newTokenId,
                 _gameId,
@@ -116,6 +120,7 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
                 msg.sender
             );
         }
+        mintedAmountForGameType[_gameId] = mintedAmountForGameType[_gameId].add(_amount);
 
         uint256 mintFee = _price.mul(_amount).mul(MINT_FEE).div(PERCENTAGE);
         uint256 commissionValue = _price.mul(_amount).sub(mintFee);
@@ -219,5 +224,36 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         returns(bool)
     {
         return addressForRegister[msg.sender];
+    }
+
+    function setTotalSupplyForGame(uint256 _gameId, uint256 amount)
+        public 
+        onlyRegister
+    {
+        totalSupplyForGameType[_gameId] = amount;
+    }
+
+    function getTotalSupplyForGameType(uint256 _gameId)
+        public
+        view
+        returns(uint256)
+    {
+        return totalSupplyForGameType[_gameId];
+    }
+
+    function getMintedAmountForGameType(uint256 _gameId)
+        public
+        view
+        returns(uint256)
+    {
+        return mintedAmountForGameType[_gameId];
+    }
+
+    function getNFTInfo(uint256 _tokenId)
+        public
+        view
+        returns(NFTInfo memory)
+    {
+        return NFTInfoForTokenId[_tokenId];
     }
 }
