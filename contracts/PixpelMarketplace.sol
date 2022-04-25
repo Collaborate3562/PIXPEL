@@ -48,33 +48,11 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
     uint256 expiresAt;
   }
 
-  struct NFTInfo {
-    uint256 tokenId;
-    uint256 devId;
-    uint256 price;
-    address creator;
-    uint256 mintedTime;
-    uint256 lastSaledTime;
-    address currentOwner;
-    address previousOwner;
-    uint256 royalty;
-  }
-
   // mapping marketItem
   mapping(uint256 => MarketItem) private idToMarketItem;
   // mapping auction item to bidders
   mapping(uint256 => address payable) private idToHighestBidder;
   mapping(uint256 => uint256) private idToHighestBid;
-
-  mapping(address => bool) public addressForRegister;
-
-  modifier onlyRegister() {
-    require(
-        addressForRegister[msg.sender],
-        "Can only be called by register"
-    );
-    _;
-  }
 
   /* Define events */
   event MarketItemCreated(
@@ -85,12 +63,6 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
     string status,
     uint256 startAt,
     uint256 expiresAt
-  );
-
-  event NFTMinted(
-    uint256 devId,
-    uint256 tokenId,
-    uint256 price
   );
 
   event MarketItemForSaleUpdated(
@@ -135,20 +107,6 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
   /* Sets the percentge of unlisting price of the contract */
   function setUnlistingPricePercentage(uint256 _unlistingPricePercentage) public onlyOwner {
     unlistingPricePercentage = _unlistingPricePercentage;
-  }
-
-  function mint(uint256 amount, uint256 _devId, uint256 _gameId, uint256 price)
-    public
-    onlyRegister
-  {
-    require(IERC20(PIXPContractAddress).balanceOf(msg.sender) >= price * amount, "Insufficient funds.");
-
-    for(uint256 i = 0; i < amount; i++) {
-      PixpelNFT(nftContractAddress).mintNFT(msg.sender);
-      _tokenIds.increment();
-
-      require(IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), price * amount), "Transfer failed.");
-    }
   }
 
   /* Places an item for sale on the marketplace */
@@ -317,28 +275,5 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
   /** Get contract Profit */
   function getProfit() public view returns (uint256) {
     return _profit;
-  }
-
-  function registerAddress(address _register) 
-    public
-    onlyOwner
-  {
-    require(_register != owner(), "Owner can't be registered.");
-    addressForRegister[_register] = true;
-  }
-
-  function unregisterAddress(address _unregister)
-    public
-    onlyOwner
-  {
-    addressForRegister[_unregister] = false;
-  }
-
-  function isRegister()
-    public 
-    view
-    returns(bool)
-  {
-      return addressForRegister[msg.sender];
   }
 }

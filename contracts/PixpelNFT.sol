@@ -11,6 +11,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
@@ -24,8 +25,41 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
     Counters.Counter private _tokenIds;
 
     string private baseTokenURI;
+    address public PIXPContractAddress;
+    address public charityWalletAddress;
+
+    uint256 private constant MINT_FEE = 1;
+    uint256 private constant PERCENTAGE = 100;
+    uint256 private constant ROYALTY_FEE = 3;
+
+    struct NFTInfo {
+        uint256 tokenId;
+        uint256 devId;
+        uint256 gameId;
+        uint256 price;
+        address creator;
+        uint256 mintedTime;
+        uint256 lastSaledTime;
+        address currentOwner;
+        address previousOwner;
+        uint256 royalty;
+    }
+
+    mapping(address => bool) public addressForRegister;
+    mapping(uint256 => uint256) public totalSupplyForGameType;
+    mapping(uint256 => NFTInfo) public NFTInfoForTokenId;
     
-    constructor() ERC721("PixpelNFT", "PIXPNT") {
+    modifier onlyRegister() {
+        require(
+            addressForRegister[msg.sender],
+            "Can only be called by register"
+        );
+        _;
+    }
+    
+    constructor(address _pixpContractAddress, address _charityWalletAddress) ERC721("PixpelNFT", "PIXPNT") {
+        PIXPContractAddress = _pixpContractAddress;
+        charityWalletAddress = _charityWalletAddress;
     }
     receive() external payable {}
 
@@ -45,12 +79,35 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         baseTokenURI = _newuri;
     }
 
-    function mintNFT(address _to) 
+    function mintNFT(uint256 _devId, uint256 _gameId, uint256 _amount, uint256 _price) 
         public 
+        onlyRegister
     {
-        uint256 _newTokenId = _tokenIds.current();
-        _safeMint(_to, _newTokenId);
-        _tokenIds.increment();
+        require(IERC20(PIXPContractAddress).balanceOf(msg.sender) >= _price.mul(_amount), "Insufficient funds.");
+        require(IERC20(PIXPContractAddress).allowance(msg.sender, address(this)) >= _price.mul(_amount), "Allowance funds must exceed price");
+
+        for(uint256 i = 0; i < _amount; i++) {            
+            uint256 _newTokenId = _tokenIds.current();
+            _safeMint(msg.sender, _newTokenId);
+            _tokenIds.increment();
+
+            NFTInfoForTokenId[_newTokenId].tokenId = _newTokenId;
+            NFTInfoForTokenId[_newTokenId].devId = _devId;
+            NFTInfoForTokenId[_newTokenId].gameId = _gameId;
+            NFTInfoForTokenId[_newTokenId].price = _price;
+            NFTInfoForTokenId[_newTokenId].creator = msg.sender;
+            NFTInfoForTokenId[_newTokenId].mintedTime = block.timestamp;
+            NFTInfoForTokenId[_newTokenId].lastSaledTime = block.timestamp;
+            NFTInfoForTokenId[_newTokenId].currentOwner = msg.sender;
+            NFTInfoForTokenId[_newTokenId].previousOwner = address(0);
+            NFTInfoForTokenId[_newTokenId].royalty = ROYALTY_FEE;
+        }
+
+        uint256 mintFee = _price.mul(_amount).mul(MINT_FEE).div(PERCENTAGE);
+        uint256 commissionValue = _price.mul(_amount).sub(mintFee);
+
+        require(IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), commissionValue), "Transfer failed");
+        require(IERC20(PIXPContractAddress).transferFrom(msg.sender, charityWalletAddress, commissionValue), "Transfer fee failed");
     }
 
     function tokensOfOwner(address _owner)
@@ -125,5 +182,28 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         override(ERC721, ERC721Enumerable)
     {
         super._beforeTokenTransfer(from, to, tokenId);
+    }
+
+    function registerAddress(address _register) 
+        public
+        onlyOwner
+    {
+        require(_register != owner(), "Can not be registered.");
+        addressForRegister[_register] = true;
+    }
+
+    function unregisterAddress(address _unregister)
+        public
+        onlyOwner
+    {
+        addressForRegister[_unregister] = false;
+    }
+
+    function isRegister()
+        public 
+        view
+        returns(bool)
+    {
+        return addressForRegister[msg.sender];
     }
 }
