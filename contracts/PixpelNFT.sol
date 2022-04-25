@@ -56,6 +56,13 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         );
         _;
     }
+
+    event NFTMinted(
+        uint256 tokenId,
+        uint256 gameId,
+        uint256 price,
+        address creator
+    );
     
     constructor(address _pixpContractAddress, address _charityWalletAddress) ERC721("PixpelNFT", "PIXPNT") {
         PIXPContractAddress = _pixpContractAddress;
@@ -101,6 +108,13 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
             NFTInfoForTokenId[_newTokenId].currentOwner = msg.sender;
             NFTInfoForTokenId[_newTokenId].previousOwner = address(0);
             NFTInfoForTokenId[_newTokenId].royalty = ROYALTY_FEE;
+            
+            emit NFTMinted(
+                _newTokenId,
+                _gameId,
+                _price,
+                msg.sender
+            );
         }
 
         uint256 mintFee = _price.mul(_amount).mul(MINT_FEE).div(PERCENTAGE);
