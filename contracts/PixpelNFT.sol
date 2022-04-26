@@ -23,6 +23,7 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
 
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
+    Counters.Counter private _claimedTokenIds;
 
     string private baseTokenURI;
     address public PIXPContractAddress;
@@ -31,6 +32,9 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
     uint256 private constant MINT_FEE = 1;
     uint256 private constant PERCENTAGE = 100;
     uint256 private constant ROYALTY_FEE = 3;
+    uint256 private constant OPEN_MYSTERY_FEE = 1;
+    uint256 private constant SAVE_PERCENTAGE_FOR_SINGLE = 10;
+    uint256 private constant SAVE_PERCENTAGE_FOR_OTHER = 70;
 
     struct NFTInfo {
         uint256 tokenId;
@@ -127,6 +131,36 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
 
         require(IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), commissionValue), "Transfer failed");
         require(IERC20(PIXPContractAddress).transferFrom(msg.sender, charityWalletAddress, commissionValue), "Transfer fee failed");
+    }
+
+    function claimNFT()
+        public
+    {
+        require(_claimedTokenIds.current() <= _tokenIds, "Not exist this token.");
+
+        uint256 _priceMinted = NFTInfoForTokenId[_claimedTokenIds.current()].price;
+
+        require(IERC20(PIXPContractAddress).balanceOf(msg.sender) >= _priceMinted.mul(PERCENTAGE.add(OPEN_MYSTERY_FEE)).div(PERCENTAGE), "Insufficient funds.");
+        require(IERC20(PIXPContractAddress).allowance(msg.sender, address(this)) >= _priceMinted.mul(PERCENTAGE.add(OPEN_MYSTERY_FEE)).div(PERCENTAGE), "Allowance funds must exceed price");
+        require(IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), _priceMinted.mul(OPEN_MYSTERY_FEE).div(PERCENTAGE)), "Transfer open box fee failed.");
+
+        uint256 _devId = NFTInfoForTokenId[_tokenId].devId;
+
+        uint256 commissionValue = 0;
+        uint256 valueForCreator = 0;
+        if(_devId == 1) {
+            commissionValue = _priceMinted.mul(SAVE_PERCENTAGE_FOR_SINGLE).div(PERCENTAGE);
+            valueForCreator = _priceMinted.sub(commissionValue);
+        } else {
+            commissionValue = _priceMinted.mul(SAVE_PERCENTAGE_FOR_OTHER).div(PERCENTAGE);
+            valueForCreator = _priceMinted.sub(commissionValue);
+        }
+        
+        require(IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), commissionValue), "Transfer open box fee failed.");
+        require(IERC20(PIXPContractAddress).transferFrom(msg.sender, charityWalletAddress, valueForCreator), "Transfer to creator failed.");
+
+        transferFrom(NFTInfoForTokenId[_tokenId], msg.sender, _claimedTokenIds.current());
+        _claimedTokenIds.increment();
     }
 
     function tokensOfOwner(address _owner)
