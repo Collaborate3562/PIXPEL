@@ -136,7 +136,7 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
     function claimNFT()
         public
     {
-        require(_claimedTokenIds.current() <= _tokenIds, "Not exist this token.");
+        require(_claimedTokenIds.current() <= _tokenIds.current(), "Not exist this token.");
 
         uint256 _priceMinted = NFTInfoForTokenId[_claimedTokenIds.current()].price;
 
@@ -144,7 +144,7 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         require(IERC20(PIXPContractAddress).allowance(msg.sender, address(this)) >= _priceMinted.mul(PERCENTAGE.add(OPEN_MYSTERY_FEE)).div(PERCENTAGE), "Allowance funds must exceed price");
         require(IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), _priceMinted.mul(OPEN_MYSTERY_FEE).div(PERCENTAGE)), "Transfer open box fee failed.");
 
-        uint256 _devId = NFTInfoForTokenId[_tokenId].devId;
+        uint256 _devId = NFTInfoForTokenId[_claimedTokenIds.current()].devId;
 
         uint256 commissionValue = 0;
         uint256 valueForCreator = 0;
@@ -159,7 +159,7 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         require(IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), commissionValue), "Transfer open box fee failed.");
         require(IERC20(PIXPContractAddress).transferFrom(msg.sender, charityWalletAddress, valueForCreator), "Transfer to creator failed.");
 
-        transferFrom(NFTInfoForTokenId[_tokenId], msg.sender, _claimedTokenIds.current());
+        transferFrom(NFTInfoForTokenId[_claimedTokenIds.current()].creator, msg.sender, _claimedTokenIds.current());
         _claimedTokenIds.increment();
     }
 

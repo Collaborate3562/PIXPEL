@@ -276,4 +276,12 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
   function getProfit() public view returns (uint256) {
     return _profit;
   }
+
+  function setNFTContractAddress(address _new) public onlyOwner {
+    nftContractAddress = payable(_new);
+  }
+
+  function setPIXPContractAddress(address _new) public onlyOwner {
+    PIXPContractAddress = _new;
+  }
 }
