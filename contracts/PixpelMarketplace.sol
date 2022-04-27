@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 // import "@openzeppelin/contracts/utils/Counters.sol";
 // import "@openzeppelin/contracts/access/Ownable.sol";
 // import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+// import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./PixpelNFT.sol";
 
@@ -40,8 +40,8 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
   struct MarketItem {
     bool exist;
     uint256 tokenId;
-    address payable creator;
-    address payable currentOwner;
+    address creator;
+    address currentOwner;
     uint256 price;
     string status;
     uint256 startAt;
@@ -51,7 +51,7 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
   // mapping marketItem
   mapping(uint256 => MarketItem) private idToMarketItem;
   // mapping auction item to bidders
-  mapping(uint256 => address payable) private idToHighestBidder;
+  mapping(uint256 => address) private idToHighestBidder;
   mapping(uint256 => uint256) private idToHighestBid;
 
   /* Define events */
@@ -115,15 +115,24 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
     uint256 price,
     string memory status,
     uint256 duration
-  ) public payable nonReentrant {
+  ) public nonReentrant {
+    require(!idToMarketItem[tokenId].exist, "This NFT already exist on market!");
+    require(
+      PixpelNFT(nftContractAddress).ownerOf(tokenId) == msg.sender, 
+      "Not Owner."
+    );
     require(price > 0, "Price must be at least 1 wei.");
     require(
-      msg.value == price * listingPricePercentage / 10000,
+      IERC20(PIXPContractAddress).balanceOf(msg.sender) >= price.mul(listingPricePercentage).div(10000),
       "Price must be equal to listing price."
+    );
+    require(
+      IERC20(PIXPContractAddress).allowance(msg.sender, address(this)) >= price.mul(listingPricePercentage).div(10000), 
+      "Allowance funds must exceed price"
     );
     if (keccak256(abi.encodePacked((status))) == keccak256(abi.encodePacked(("forAuction")))) {
       require ( duration >= 1,  "Auction duration must be more than 1 day.");
-      idToHighestBidder[tokenId] = payable(msg.sender);
+      idToHighestBidder[tokenId] = msg.sender;
       idToHighestBid[tokenId] = price;
     }
 
@@ -137,15 +146,20 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
     idToMarketItem[tokenId] = MarketItem(
       true,
       tokenId,
-      payable(creator),
-      payable(msg.sender),
+      creator,
+      msg.sender,
       price,
       status,
       block.timestamp,
       block.timestamp + (duration * 1 days)
     );
 
-    _profit += msg.value;
+    require(
+      IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), price.mul(listingPricePercentage).div(10000)), 
+      "Transfer failed."
+    );
+
+    _profit += price.mul(listingPricePercentage).div(10000);
 
     emit MarketItemCreated(
       tokenId,
@@ -161,12 +175,20 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
   /* Down the NFT of the market for Sale */
   function itemDownMarket(uint256 tokenId) public {
     require(idToMarketItem[tokenId].exist, "This NFT doesn't exist!");
+    require(idToMarketItem[tokenId].creator == msg.sender, "Not creator.");
     MarketItem memory item = idToMarketItem[tokenId];
     item.status = "down";
     idToMarketItem[tokenId] = item;
-    idToMarketItem[tokenId].currentOwner.transfer(item.price * unlistingPricePercentage / 10000);
+    // idToMarketItem[tokenId].currentOwner.transfer(item.price * unlistingPricePercentage / 10000);
 
-    _profit -= (item.price * unlistingPricePercentage / 10000);
+    // _profit -= (item.price * unlistingPricePercentage / 10000);
+
+    // require(
+    //   IERC20(PIXPContractAddress).transferFrom(address(this), msg.sender, item.price.mul(unlistingPricePercentage).div(10000)), 
+    //   "Transfer failed."
+    // );
+
+    // _profit -= (item.price.mul(unlistingPricePercentage).div(10000));
 
     emit MarketItemForSaleUpdated (
       tokenId,
@@ -178,7 +200,6 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
   /* Transfers ownership of the item, as well as funds between parties */
   function purchaseNFT(uint256 tokenId)
     public
-    payable
     nonReentrant
   {
     require(idToMarketItem[tokenId].exist, "This NFT doesn't exist!");
@@ -187,13 +208,29 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
       "This NFT isn't on sale.");
     require(idToMarketItem[tokenId].currentOwner != msg.sender, "You already have this NFT.");
     require(
-      msg.value == idToMarketItem[tokenId].price,
+      IERC20(PIXPContractAddress).balanceOf(msg.sender) >= idToMarketItem[tokenId].price,
       "Please submit the asking price in order to complete the purchase."
     );
+    require(
+      IERC20(PIXPContractAddress).allowance(msg.sender, address(this)) >= idToMarketItem[tokenId].price,
+      "Please approve token in order to complete the purchase."
+    );
 
-    idToMarketItem[tokenId].currentOwner.transfer(msg.value);
-    IERC721(nftContractAddress).transferFrom(idToMarketItem[tokenId].currentOwner, msg.sender, tokenId);
-    idToMarketItem[tokenId].currentOwner = payable(msg.sender);
+    (,,,,address creatorAddress,,,,,uint256 royaltyFee) = PixpelNFT(nftContractAddress).getNFTInfo(tokenId);
+    uint256 royaltyValue = idToMarketItem[tokenId].price.mul(royaltyFee).div(100);
+    uint256 purchaseValue = idToMarketItem[tokenId].price.sub(royaltyValue);
+
+    require(
+      IERC20(PIXPContractAddress).transferFrom(msg.sender, creatorAddress, royaltyValue), 
+      "Transfer royalty fee failed."
+    );
+    require(
+      IERC20(PIXPContractAddress).transferFrom(msg.sender, idToMarketItem[tokenId].currentOwner, purchaseValue), 
+      "Transfer failed."
+    );
+
+    PixpelNFT(nftContractAddress).transferFrom(idToMarketItem[tokenId].currentOwner, msg.sender, tokenId);
+    idToMarketItem[tokenId].currentOwner = msg.sender;
     idToMarketItem[tokenId].status = "down";
 
     emit NFTPurchased (
@@ -204,26 +241,39 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
   }
 
   /* Bid for NFT auction and refund */
-  function bid(uint256 tokenId)
+  function bid(uint256 tokenId, uint256 updatePrice)
     public
-    payable
     nonReentrant
   {
     require(idToMarketItem[tokenId].currentOwner != msg.sender, "You already have this NFT.");
+    require(IERC20(PIXPContractAddress).balanceOf(msg.sender) >= updatePrice, "Insufficient funds.");
     require(block.timestamp <= idToMarketItem[tokenId].expiresAt, "Auction is already ended.");
     require(idToMarketItem[tokenId].exist, "This NFT doesn't exist!");
     require(idToHighestBidder[tokenId] != msg.sender, "You have already bidded.");
-    require(msg.value > idToHighestBid[tokenId], "There already is a higher bid.");
+    require(updatePrice > idToHighestBid[tokenId], "There already is a higher bid.");
 
-    idToHighestBidder[tokenId].transfer(idToHighestBid[tokenId]);
+    require(
+      IERC20(PIXPContractAddress).transferFrom(address(this), idToHighestBidder[tokenId], idToHighestBid[tokenId]), 
+      "Return bid amount failed."
+    );
+    require(
+      IERC20(PIXPContractAddress).allowance(msg.sender, address(this)) >= updatePrice, 
+      "Allowance funds must exceed price."
+    );
+    require(
+      IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), updatePrice), 
+      "Transfer failed."
+    );
 
-    idToHighestBidder[tokenId] = payable(msg.sender);
-    idToHighestBid[tokenId] = msg.value;
+    // idToHighestBidder[tokenId].transfer(idToHighestBid[tokenId]);
+
+    idToHighestBidder[tokenId] = msg.sender;
+    idToHighestBid[tokenId] = updatePrice;
 
     emit BidMade (
       tokenId,
       msg.sender,
-      msg.value
+      updatePrice
     );
   }
 
@@ -231,6 +281,11 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
   and send the highest bid to the Item owner
   and transfer the item to the highest bidder */
   function auctionEnd(uint256 tokenId) public {
+    require(idToMarketItem[tokenId].creator == msg.sender, "Not creator.");
+    require(
+      IERC20(PIXPContractAddress).allowance(msg.sender, address(this)) >= idToHighestBid[tokenId],
+      "Allowance funds must exceed price."
+    );
     require(block.timestamp >= idToMarketItem[tokenId].expiresAt, "Auction not yet ended.");
     require(
       keccak256(abi.encodePacked((idToMarketItem[tokenId].status))) != keccak256(abi.encodePacked(("down"))),
@@ -240,11 +295,22 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
     // End the auction
     idToMarketItem[tokenId].status = "down";
     //Send the highest bid to the seller.
-    if (IERC721(nftContractAddress).ownerOf(tokenId) != idToHighestBidder[tokenId]) {
-      idToMarketItem[tokenId].currentOwner.transfer(idToHighestBid[tokenId]);
+    if (PixpelNFT(nftContractAddress).ownerOf(tokenId) != idToHighestBidder[tokenId]) {
+      (,,,,address creatorAddress,,,,,uint256 royaltyFee) = PixpelNFT(nftContractAddress).getNFTInfo(tokenId);
+      uint256 royaltyValue = idToHighestBid[tokenId].mul(royaltyFee).div(100);
+      uint256 purchaseValue = idToHighestBid[tokenId].sub(royaltyValue);
+
+      require(
+        IERC20(PIXPContractAddress).transferFrom(msg.sender, creatorAddress, royaltyValue), 
+        "Transfer royalty fee failed."
+      );
+      require(
+        IERC20(PIXPContractAddress).transferFrom(msg.sender, idToMarketItem[tokenId].currentOwner, purchaseValue), 
+        "Transfer failed."
+      );
     }
     // Transfer the item to the highest bidder
-    IERC721(nftContractAddress).transferFrom(idToMarketItem[tokenId].currentOwner, idToHighestBidder[tokenId], tokenId);
+    PixpelNFT(nftContractAddress).transferFrom(idToMarketItem[tokenId].currentOwner, idToHighestBidder[tokenId], tokenId);
     idToMarketItem[tokenId].currentOwner = idToHighestBidder[tokenId];
 
     emit AuctionEnded (

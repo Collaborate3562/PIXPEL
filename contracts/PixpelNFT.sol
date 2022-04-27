@@ -159,6 +159,10 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         require(IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), commissionValue), "Transfer open box fee failed.");
         require(IERC20(PIXPContractAddress).transferFrom(msg.sender, charityWalletAddress, valueForCreator), "Transfer to creator failed.");
 
+        NFTInfoForTokenId[_claimedTokenIds.current()].lastSaledTime = block.timestamp;
+        NFTInfoForTokenId[_claimedTokenIds.current()].currentOwner = msg.sender;
+        NFTInfoForTokenId[_claimedTokenIds.current()].previousOwner = NFTInfoForTokenId[_claimedTokenIds.current()].creator;
+
         transferFrom(NFTInfoForTokenId[_claimedTokenIds.current()].creator, msg.sender, _claimedTokenIds.current());
         _claimedTokenIds.increment();
     }
@@ -286,8 +290,19 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
     function getNFTInfo(uint256 _tokenId)
         public
         view
-        returns(NFTInfo memory)
+        returns(uint256, uint256, uint256, uint256, address, uint256, uint256, address, address, uint256)
     {
-        return NFTInfoForTokenId[_tokenId];
+        return (
+            NFTInfoForTokenId[_tokenId].tokenId, 
+            NFTInfoForTokenId[_tokenId].devId, 
+            NFTInfoForTokenId[_tokenId].gameId, 
+            NFTInfoForTokenId[_tokenId].price, 
+            NFTInfoForTokenId[_tokenId].creator,
+            NFTInfoForTokenId[_tokenId].mintedTime, 
+            NFTInfoForTokenId[_tokenId].lastSaledTime, 
+            NFTInfoForTokenId[_tokenId].currentOwner,
+            NFTInfoForTokenId[_tokenId].previousOwner,
+            NFTInfoForTokenId[_tokenId].royalty
+        );
     }
 }
