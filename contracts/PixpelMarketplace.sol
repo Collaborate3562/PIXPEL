@@ -216,7 +216,9 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
       "Please approve token in order to complete the purchase."
     );
 
-    (,,,,address creatorAddress,,,,,uint256 royaltyFee) = PixpelNFT(nftContractAddress).getNFTInfo(tokenId);
+    address creatorAddress = PixpelNFT(nftContractAddress).getNFTCreator(tokenId);
+    uint256 royaltyFee = PixpelNFT(nftContractAddress).getNFTRoyalty(tokenId);
+    // (,,,,address creatorAddress,,,,,uint256 royaltyFee) = PixpelNFT(nftContractAddress).getNFTInfo(tokenId);
     uint256 royaltyValue = idToMarketItem[tokenId].price.mul(royaltyFee).div(100);
     uint256 purchaseValue = idToMarketItem[tokenId].price.sub(royaltyValue);
 
@@ -296,7 +298,10 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
     idToMarketItem[tokenId].status = "down";
     //Send the highest bid to the seller.
     if (PixpelNFT(nftContractAddress).ownerOf(tokenId) != idToHighestBidder[tokenId]) {
-      (,,,,address creatorAddress,,,,,uint256 royaltyFee) = PixpelNFT(nftContractAddress).getNFTInfo(tokenId);
+      address creatorAddress = PixpelNFT(nftContractAddress).getNFTCreator(tokenId);
+      uint256 royaltyFee = PixpelNFT(nftContractAddress).getNFTRoyalty(tokenId);
+
+      // (,,,,address creatorAddress,,,,,uint256 royaltyFee) = PixpelNFT(nftContractAddress).getNFTInfo(tokenId);
       uint256 royaltyValue = idToHighestBid[tokenId].mul(royaltyFee).div(100);
       uint256 purchaseValue = idToHighestBid[tokenId].sub(royaltyValue);
 

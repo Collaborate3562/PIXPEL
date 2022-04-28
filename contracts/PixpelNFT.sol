@@ -287,22 +287,42 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         return mintedAmountForGameType[_gameId];
     }
 
-    function getNFTInfo(uint256 _tokenId)
+    // function getNFTInfo(uint256 _tokenId)
+    //     public
+    //     view
+    //     returns(uint256, uint256, uint256, uint256, address, uint256, uint256, address, address, uint256)
+    // {
+    //     require(_tokenId <= _tokenIds.current(), "This NFT does not exist.");
+    //     return (
+    //         NFTInfoForTokenId[_tokenId].tokenId, 
+    //         NFTInfoForTokenId[_tokenId].devId, 
+    //         NFTInfoForTokenId[_tokenId].gameId, 
+    //         NFTInfoForTokenId[_tokenId].price, 
+    //         NFTInfoForTokenId[_tokenId].creator,
+    //         NFTInfoForTokenId[_tokenId].mintedTime, 
+    //         NFTInfoForTokenId[_tokenId].lastSaledTime, 
+    //         NFTInfoForTokenId[_tokenId].currentOwner,
+    //         NFTInfoForTokenId[_tokenId].previousOwner,
+    //         NFTInfoForTokenId[_tokenId].royalty
+    //     );
+    // }
+
+    function getNFTCreator(uint256 _tokenId)
         public
         view
-        returns(uint256, uint256, uint256, uint256, address, uint256, uint256, address, address, uint256)
+        returns(address)
     {
-        return (
-            NFTInfoForTokenId[_tokenId].tokenId, 
-            NFTInfoForTokenId[_tokenId].devId, 
-            NFTInfoForTokenId[_tokenId].gameId, 
-            NFTInfoForTokenId[_tokenId].price, 
-            NFTInfoForTokenId[_tokenId].creator,
-            NFTInfoForTokenId[_tokenId].mintedTime, 
-            NFTInfoForTokenId[_tokenId].lastSaledTime, 
-            NFTInfoForTokenId[_tokenId].currentOwner,
-            NFTInfoForTokenId[_tokenId].previousOwner,
-            NFTInfoForTokenId[_tokenId].royalty
-        );
+        require(_tokenId <= _tokenIds.current(), "This NFT does not exist.");
+        return NFTInfoForTokenId[_tokenId].creator;
     }
+
+    function getNFTRoyalty(uint256 _tokenId)
+        public
+        view
+        returns(uint256)
+    {
+        require(_tokenId <= _tokenIds.current(), "This NFT does not exist.");
+        return NFTInfoForTokenId[_tokenId].royalty;
+    }
+
 }
