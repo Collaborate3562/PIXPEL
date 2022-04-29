@@ -232,6 +232,8 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
     );
 
     PixpelNFT(nftContractAddress).transferFrom(idToMarketItem[tokenId].currentOwner, msg.sender, tokenId);
+    PixpelNFT(nftContractAddress).changeStatus(tokenId, msg.sender, idToMarketItem[tokenId].currentOwner, block.timestamp, idToMarketItem[tokenId].price);
+    
     idToMarketItem[tokenId].currentOwner = msg.sender;
     idToMarketItem[tokenId].status = "down";
 
@@ -316,6 +318,8 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
     }
     // Transfer the item to the highest bidder
     PixpelNFT(nftContractAddress).transferFrom(idToMarketItem[tokenId].currentOwner, idToHighestBidder[tokenId], tokenId);
+    PixpelNFT(nftContractAddress).changeStatus(tokenId, msg.sender, idToMarketItem[tokenId].currentOwner, block.timestamp, idToMarketItem[tokenId].price);
+    
     idToMarketItem[tokenId].currentOwner = idToHighestBidder[tokenId];
 
     emit AuctionEnded (

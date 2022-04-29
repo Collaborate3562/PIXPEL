@@ -325,4 +325,13 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         return NFTInfoForTokenId[_tokenId].royalty;
     }
 
+    function changeStatus(uint256 _tokenId, address _newOwner, address _prevOwner, uint256 _purchasedTime, uint256 purchasedPrice)
+        public
+    {
+        NFTInfoForTokenId[_tokenId].price = purchasedPrice;
+        NFTInfoForTokenId[_tokenId].lastSaledTime = _purchasedTime; 
+        NFTInfoForTokenId[_tokenId].currentOwner = _newOwner;
+        NFTInfoForTokenId[_tokenId].previousOwner = _prevOwner;
+    }
+
 }
