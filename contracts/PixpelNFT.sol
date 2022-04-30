@@ -23,55 +23,14 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
 
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
-    Counters.Counter private _claimedTokenIds;
 
     string private baseTokenURI;
-    address public PIXPContractAddress;
-    address public charityWalletAddress;
-
-    uint256 private constant MINT_FEE = 1;
-    uint256 private constant PERCENTAGE = 100;
-    uint256 private constant ROYALTY_FEE = 3;
-    uint256 private constant OPEN_MYSTERY_FEE = 1;
-    uint256 private constant SAVE_PERCENTAGE_FOR_SINGLE = 10;
-    uint256 private constant SAVE_PERCENTAGE_FOR_OTHER = 70;
-
-    struct NFTInfo {
-        uint256 tokenId;
-        uint256 devId;
-        uint256 gameId;
-        uint256 price;
-        address creator;
-        uint256 mintedTime;
-        uint256 lastSaledTime;
-        address currentOwner;
-        address previousOwner;
-        uint256 royalty;
-    }
-
-    mapping(address => bool) public addressForRegister;
-    mapping(uint256 => uint256) public totalSupplyForGameType;
-    mapping(uint256 => NFTInfo) public NFTInfoForTokenId;
-    mapping(uint256 => uint256) public mintedAmountForGameType;
+    address public marketAddress;
     
-    modifier onlyRegister() {
-        require(
-            addressForRegister[msg.sender],
-            "Can only be called by register"
-        );
-        _;
-    }
-
-    event NFTMinted(
-        uint256 tokenId,
-        uint256 gameId,
-        uint256 price,
-        address creator
-    );
-    
-    constructor(address _pixpContractAddress, address _charityWalletAddress) ERC721("PixpelNFT", "PIXPNT") {
-        PIXPContractAddress = _pixpContractAddress;
-        charityWalletAddress = _charityWalletAddress;
+    constructor(
+        address _marketAddress
+    ) ERC721("PixpelNFT", "PIXPNT") {
+        marketAddress = _marketAddress;
     }
     receive() external payable {}
 
@@ -91,80 +50,13 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
         baseTokenURI = _newuri;
     }
 
-    function mintNFT(uint256 _devId, uint256 _gameId, uint256 _amount, uint256 _price) 
-        public 
-        onlyRegister
-    {
-        if(totalSupplyForGameType[_gameId] > 0) {
-            require(totalSupplyForGameType[_gameId] >= mintedAmountForGameType[_gameId].add(_amount), "Can not mint anymore");
-        }
-        require(IERC20(PIXPContractAddress).balanceOf(msg.sender) >= _price.mul(_amount), "Insufficient funds.");
-        require(IERC20(PIXPContractAddress).allowance(msg.sender, address(this)) >= _price.mul(_amount), "Allowance funds must exceed price");
-
-        for(uint256 i = 0; i < _amount; i++) {            
-            uint256 _newTokenId = _tokenIds.current();
-            _safeMint(msg.sender, _newTokenId);
-            _tokenIds.increment();
-
-            NFTInfoForTokenId[_newTokenId].tokenId = _newTokenId;
-            NFTInfoForTokenId[_newTokenId].devId = _devId;
-            NFTInfoForTokenId[_newTokenId].gameId = _gameId;
-            NFTInfoForTokenId[_newTokenId].price = _price;
-            NFTInfoForTokenId[_newTokenId].creator = msg.sender;
-            NFTInfoForTokenId[_newTokenId].mintedTime = block.timestamp;
-            NFTInfoForTokenId[_newTokenId].lastSaledTime = block.timestamp;
-            NFTInfoForTokenId[_newTokenId].currentOwner = msg.sender;
-            NFTInfoForTokenId[_newTokenId].previousOwner = address(0);
-            NFTInfoForTokenId[_newTokenId].royalty = ROYALTY_FEE;
-
-            emit NFTMinted(
-                _newTokenId,
-                _gameId,
-                _price,
-                msg.sender
-            );
-        }
-        mintedAmountForGameType[_gameId] = mintedAmountForGameType[_gameId].add(_amount);
-
-        uint256 mintFee = _price.mul(_amount).mul(MINT_FEE).div(PERCENTAGE);
-        uint256 commissionValue = _price.mul(_amount).sub(mintFee);
-
-        require(IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), commissionValue), "Transfer failed");
-        require(IERC20(PIXPContractAddress).transferFrom(msg.sender, charityWalletAddress, commissionValue), "Transfer fee failed");
-    }
-
-    function claimNFT()
+    function mint(address _to) 
         public
     {
-        require(_claimedTokenIds.current() <= _tokenIds.current(), "Not exist this token.");
-
-        uint256 _priceMinted = NFTInfoForTokenId[_claimedTokenIds.current()].price;
-
-        require(IERC20(PIXPContractAddress).balanceOf(msg.sender) >= _priceMinted.mul(PERCENTAGE.add(OPEN_MYSTERY_FEE)).div(PERCENTAGE), "Insufficient funds.");
-        require(IERC20(PIXPContractAddress).allowance(msg.sender, address(this)) >= _priceMinted.mul(PERCENTAGE.add(OPEN_MYSTERY_FEE)).div(PERCENTAGE), "Allowance funds must exceed price");
-        require(IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), _priceMinted.mul(OPEN_MYSTERY_FEE).div(PERCENTAGE)), "Transfer open box fee failed.");
-
-        uint256 _devId = NFTInfoForTokenId[_claimedTokenIds.current()].devId;
-
-        uint256 commissionValue = 0;
-        uint256 valueForCreator = 0;
-        if(_devId == 1) {
-            commissionValue = _priceMinted.mul(SAVE_PERCENTAGE_FOR_SINGLE).div(PERCENTAGE);
-            valueForCreator = _priceMinted.sub(commissionValue);
-        } else {
-            commissionValue = _priceMinted.mul(SAVE_PERCENTAGE_FOR_OTHER).div(PERCENTAGE);
-            valueForCreator = _priceMinted.sub(commissionValue);
-        }
-        
-        require(IERC20(PIXPContractAddress).transferFrom(msg.sender, address(this), commissionValue), "Transfer open box fee failed.");
-        require(IERC20(PIXPContractAddress).transferFrom(msg.sender, charityWalletAddress, valueForCreator), "Transfer to creator failed.");
-
-        NFTInfoForTokenId[_claimedTokenIds.current()].lastSaledTime = block.timestamp;
-        NFTInfoForTokenId[_claimedTokenIds.current()].currentOwner = msg.sender;
-        NFTInfoForTokenId[_claimedTokenIds.current()].previousOwner = NFTInfoForTokenId[_claimedTokenIds.current()].creator;
-
-        transferFrom(NFTInfoForTokenId[_claimedTokenIds.current()].creator, msg.sender, _claimedTokenIds.current());
-        _claimedTokenIds.increment();
+        require(msg.sender == _to, "Caller must be owner."); 
+        uint256 _newTokenId = _tokenIds.current();
+        _safeMint(msg.sender, _newTokenId);
+        _tokenIds.increment();
     }
 
     function tokensOfOwner(address _owner)
@@ -240,98 +132,4 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
     {
         super._beforeTokenTransfer(from, to, tokenId);
     }
-
-    function registerAddress(address _register) 
-        public
-        onlyOwner
-    {
-        require(_register != owner(), "Can not be registered.");
-        addressForRegister[_register] = true;
-    }
-
-    function unregisterAddress(address _unregister)
-        public
-        onlyOwner
-    {
-        addressForRegister[_unregister] = false;
-    }
-
-    function isRegister()
-        public 
-        view
-        returns(bool)
-    {
-        return addressForRegister[msg.sender];
-    }
-
-    function setTotalSupplyForGame(uint256 _gameId, uint256 amount)
-        public 
-        onlyRegister
-    {
-        totalSupplyForGameType[_gameId] = amount;
-    }
-
-    function getTotalSupplyForGameType(uint256 _gameId)
-        public
-        view
-        returns(uint256)
-    {
-        return totalSupplyForGameType[_gameId];
-    }
-
-    function getMintedAmountForGameType(uint256 _gameId)
-        public
-        view
-        returns(uint256)
-    {
-        return mintedAmountForGameType[_gameId];
-    }
-
-    // function getNFTInfo(uint256 _tokenId)
-    //     public
-    //     view
-    //     returns(uint256, uint256, uint256, uint256, address, uint256, uint256, address, address, uint256)
-    // {
-    //     require(_tokenId <= _tokenIds.current(), "This NFT does not exist.");
-    //     return (
-    //         NFTInfoForTokenId[_tokenId].tokenId, 
-    //         NFTInfoForTokenId[_tokenId].devId, 
-    //         NFTInfoForTokenId[_tokenId].gameId, 
-    //         NFTInfoForTokenId[_tokenId].price, 
-    //         NFTInfoForTokenId[_tokenId].creator,
-    //         NFTInfoForTokenId[_tokenId].mintedTime, 
-    //         NFTInfoForTokenId[_tokenId].lastSaledTime, 
-    //         NFTInfoForTokenId[_tokenId].currentOwner,
-    //         NFTInfoForTokenId[_tokenId].previousOwner,
-    //         NFTInfoForTokenId[_tokenId].royalty
-    //     );
-    // }
-
-    function getNFTCreator(uint256 _tokenId)
-        public
-        view
-        returns(address)
-    {
-        require(_tokenId <= _tokenIds.current(), "This NFT does not exist.");
-        return NFTInfoForTokenId[_tokenId].creator;
-    }
-
-    function getNFTRoyalty(uint256 _tokenId)
-        public
-        view
-        returns(uint256)
-    {
-        require(_tokenId <= _tokenIds.current(), "This NFT does not exist.");
-        return NFTInfoForTokenId[_tokenId].royalty;
-    }
-
-    function changeStatus(uint256 _tokenId, address _newOwner, address _prevOwner, uint256 _purchasedTime, uint256 purchasedPrice)
-        public
-    {
-        NFTInfoForTokenId[_tokenId].price = purchasedPrice;
-        NFTInfoForTokenId[_tokenId].lastSaledTime = _purchasedTime; 
-        NFTInfoForTokenId[_tokenId].currentOwner = _newOwner;
-        NFTInfoForTokenId[_tokenId].previousOwner = _prevOwner;
-    }
-
 }
