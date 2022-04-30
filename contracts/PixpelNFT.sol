@@ -17,6 +17,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+interface IMarket {
+    function isRegister(address _account) external view returns (bool);
+}
+
 contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorage, ERC721Burnable, Ownable {
     using SafeMath for uint256;
     using Strings for uint256;
@@ -26,7 +30,17 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
 
     string private baseTokenURI;
     address public marketAddress;
+
+    mapping(address => bool) public addressForRegister;
     
+    modifier onlyRegister(address _to) {
+        require(
+            IMarket(marketAddress).isRegister(_to),
+            "Can only be called by register"
+        );
+        _;
+    }
+
     constructor(
         address _marketAddress
     ) ERC721("PixpelNFT", "PIXPNT") {
@@ -52,6 +66,7 @@ contract PixpelNFT is ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorag
 
     function mint(address _to) 
         public
+        onlyRegister(_to)
     {
         require(msg.sender == _to, "Caller must be owner."); 
         uint256 _newTokenId = _tokenIds.current();

@@ -504,12 +504,12 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
     addressForRegister[_unregister] = false;
   }
 
-  function isRegister()
+  function isRegister(address _account)
     public 
     view
     returns(bool)
   {
-    return addressForRegister[msg.sender];
+    return addressForRegister[_account];
   }
 
   function setTotalSupplyForGame(uint256 _gameId, uint256 amount)
