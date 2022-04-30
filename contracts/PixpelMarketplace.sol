@@ -341,7 +341,7 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
 
     address creatorAddress = NFTInfoForTokenId[tokenId].creator;
     uint256 royaltyFee = NFTInfoForTokenId[tokenId].royalty;
-    // (,,,,address creatorAddress,,,,,uint256 royaltyFee) = PixpelNFT(nftContractAddress).getNFTInfo(tokenId);
+    
     uint256 royaltyValue = idToMarketItem[tokenId].price.mul(royaltyFee).div(100);
     uint256 purchaseValue = idToMarketItem[tokenId].price.sub(royaltyValue);
 
@@ -429,7 +429,6 @@ contract PixpelNFTMarket is ReentrancyGuard, Ownable {
       address creatorAddress = NFTInfoForTokenId[tokenId].creator;
       uint256 royaltyFee = NFTInfoForTokenId[tokenId].royalty;
 
-      // (,,,,address creatorAddress,,,,,uint256 royaltyFee) = PixpelNFT(nftContractAddress).getNFTInfo(tokenId);
       uint256 royaltyValue = idToHighestBid[tokenId].mul(royaltyFee).div(100);
       uint256 purchaseValue = idToHighestBid[tokenId].sub(royaltyValue);
 
